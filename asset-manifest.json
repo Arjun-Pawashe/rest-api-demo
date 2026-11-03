@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "/react-validation-demo/static/css/main.6a04252f.css",
-    "main.js": "/react-validation-demo/static/js/main.557b06e6.js",
+    "main.css": "/react-validation-demo/static/css/main.f6f746f7.css",
+    "main.js": "/react-validation-demo/static/js/main.36b71608.js",
     "index.html": "/react-validation-demo/index.html",
-    "main.6a04252f.css.map": "/react-validation-demo/static/css/main.6a04252f.css.map",
-    "main.557b06e6.js.map": "/react-validation-demo/static/js/main.557b06e6.js.map"
+    "main.f6f746f7.css.map": "/react-validation-demo/static/css/main.f6f746f7.css.map",
+    "main.36b71608.js.map": "/react-validation-demo/static/js/main.36b71608.js.map"
   },
   "entrypoints": [
-    "static/css/main.6a04252f.css",
-    "static/js/main.557b06e6.js"
+    "static/css/main.f6f746f7.css",
+    "static/js/main.36b71608.js"
   ]
 }
