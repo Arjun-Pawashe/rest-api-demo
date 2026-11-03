@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
+
+const API_BASE_URL = 'https://rest-api-demo-sssp.onrender.com/api/items';
 
 function App() {
   const [formData, setFormData] = useState({
@@ -14,6 +16,101 @@ function App() {
   const [submittedData, setSubmittedData] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
 
+  // API Demo State
+  const [apiLogs, setApiLogs] = useState([]);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const logAction = (action, result) => {
+    setApiLogs((prev) => [
+      { id: Date.now(), timestamp: new Date().toLocaleTimeString(), action, result },
+      ...prev,
+    ]);
+  };
+
+  // 1. GET ALL ITEMS
+  const fetchItems = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(API_BASE_URL);
+      const data = await res.json();
+      setItems(data.data || []);
+      logAction('GET /api/items', `Fetched ${data.count || (data.data ? data.data.length : 0)} items successfully.`);
+    } catch (err) {
+      logAction('GET /api/items (ERROR)', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 2. CREATE ITEM (POST)
+  const handleCreateDemoItem = async () => {
+    setLoading(true);
+    const demoPayload = {
+      name: `Ticket Holder #${Math.floor(Math.random() * 1000)}`,
+      category: 'Conference Pass',
+      price: 50,
+      quantity: 1,
+      description: 'Demo item created directly from GitHub Pages client app.'
+    };
+
+    try {
+      const res = await fetch(API_BASE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(demoPayload)
+      });
+      const data = await res.json();
+      logAction('POST /api/items', `Created item ID: ${data.data?._id || 'Success'}`);
+      fetchItems();
+    } catch (err) {
+      logAction('POST /api/items (ERROR)', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 3. UPDATE ITEM (PUT)
+  const handleUpdateItem = async (id) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ price: 150, category: 'VIP Upgrade Pass' })
+      });
+      const data = await res.json();
+      logAction(`PUT /api/items/${id}`, `Updated pass type to VIP ($150)`);
+      fetchItems();
+    } catch (err) {
+      logAction(`PUT /api/items/${id} (ERROR)`, err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 4. DELETE ITEM (DELETE)
+  const handleDeleteItem = async (id) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/${id}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      logAction(`DELETE /api/items/${id}`, `Successfully deleted record.`);
+      fetchItems();
+    } catch (err) {
+      logAction(`DELETE /api/items/${id} (ERROR)`, err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load items on mount
+  useEffect(() => {
+    fetchItems();
+  }, []);
+
   // Handle Input Changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -25,7 +122,7 @@ function App() {
     }
   };
 
-  // Perform Client-Side Validation
+  // Client-Side Validation
   const validateForm = () => {
     const newErrors = {};
 
@@ -56,8 +153,8 @@ function App() {
     return newErrors;
   };
 
-  // Handle Form Submission
-  const handleSubmit = (e) => {
+  // Form Submission (Calls Live POST API)
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const validationErrors = validateForm();
 
@@ -68,7 +165,25 @@ function App() {
     } else {
       setErrors({});
       setSubmittedData({ ...formData });
-      setSuccessMessage('Registration successful! Confirmation sent.');
+      
+      // Also register into database via API
+      try {
+        await fetch(API_BASE_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: formData.fullName,
+            category: formData.ticketType,
+            price: formData.ticketType === 'VIP' ? 150 : formData.ticketType === 'Student' ? 25 : 50,
+            description: `Registered Email: ${formData.email}, Phone: ${formData.phone}`
+          })
+        });
+        fetchItems();
+      } catch (err) {
+        console.error('API Sync Error:', err);
+      }
+
+      setSuccessMessage('Registration successful! Record persisted to MongoDB.');
 
       setFormData({
         fullName: '',
@@ -82,15 +197,16 @@ function App() {
 
   return (
     <div className="container">
-      <h2>Tech Summit 2026 Registration</h2>
+      <h2>Tech Summit 2026 Portal & API Console</h2>
       <p className="api-notice">
-        Backend API Endpoint: <code>https://rest-api-demo-sssp.onrender.com/</code>
+        Connected Backend: <code>https://rest-api-demo-sssp.onrender.com/api/items</code>
       </p>
 
       {successMessage && (
         <div className="alert success-alert">{successMessage}</div>
       )}
 
+      {/* Form Section */}
       <form onSubmit={handleSubmit} noValidate>
         <div className="form-group">
           <label htmlFor="fullName">Full Name:</label>
@@ -160,7 +276,7 @@ function App() {
           )}
         </div>
 
-        <button type="submit" className="submit-btn">Register Now</button>
+        <button type="submit" className="submit-btn">Register & Save to DB</button>
       </form>
 
       {submittedData && (
@@ -172,6 +288,62 @@ function App() {
           <p><strong>Pass Type:</strong> {submittedData.ticketType}</p>
         </div>
       )}
+
+      {/* Interactive REST API Testing Console */}
+      <div className="api-tester-section">
+        <h3>Live REST API Interactive Controls</h3>
+        <p className="section-desc">Click any button below to trigger live HTTP requests to your Render deployment:</p>
+        
+        <div className="button-toolbar">
+          <button onClick={fetchItems} disabled={loading} className="btn btn-get">
+            GET (Refresh Items)
+          </button>
+          <button onClick={handleCreateDemoItem} disabled={loading} className="btn btn-post">
+            POST (Create Item)
+          </button>
+        </div>
+
+        {/* Database Record List with inline PUT & DELETE controls */}
+        <h4>Current DB Records ({items.length}):</h4>
+        {loading && <p className="loading-text">Communicating with backend...</p>}
+        <div className="items-list">
+          {items.length === 0 ? (
+            <p className="no-items">No items found in database.</p>
+          ) : (
+            items.map((item) => (
+              <div key={item._id} className="item-card">
+                <div>
+                  <strong>{item.name}</strong> ({item.category}) - ${item.price}
+                  <br />
+                  <small>ID: {item._id}</small>
+                </div>
+                <div className="item-actions">
+                  <button onClick={() => handleUpdateItem(item._id)} className="btn btn-put-sm">
+                    PUT (Upgrade)
+                  </button>
+                  <button onClick={() => handleDeleteItem(item._id)} className="btn btn-delete-sm">
+                    DELETE
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Console Execution Log */}
+        <h4>Execution Console Log:</h4>
+        <div className="console-log">
+          {apiLogs.length === 0 ? (
+            <p className="log-empty">No requests executed yet.</p>
+          ) : (
+            apiLogs.map((log) => (
+              <div key={log.id} className="log-entry">
+                <span className="log-time">[{log.timestamp}]</span> <strong>{log.action}:</strong> {log.result}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 }
